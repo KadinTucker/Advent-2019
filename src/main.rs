@@ -1,5 +1,4 @@
 use std::fs;
-use std::num;
 
 fn main() {
 
@@ -38,22 +37,27 @@ fn main() {
     let wire1 = generate_wire("wire1.txt");
     let wire2 = generate_wire("wire2.txt");
 
-    let mut min_distance = -1; //All input values appear to be < 1000 in length
+    let mut min_distance = -1; //-1 is the default minimum; no lengths or distances should be negative, so this is "infinity"
+    let mut min_length = -1;
 
     for s1 in &wire1 {
         for s2 in &wire2 {
-            let new_dist = match intersection(s1, s2) {
+            let new_dists = match intersection(s1, s2) {
                 Some(v) => v,
-                None => min_distance
+                None => (min_distance, min_length)
             };
             //println!("{}", new_dist);
-            if new_dist < min_distance || min_distance < 0 {
-                min_distance = new_dist;
+            if new_dists.0 < min_distance || min_distance < 0 {
+                min_distance = new_dists.0;
+            }
+            if new_dists.1 < min_length || min_length < 0 {
+                min_length = new_dists.1;
             }
         }
     }
 
     println!("\tMinimum wire crossing distance: {}", min_distance);
+    println!("\tMinimum length along wire crossing: {}", min_length);
 
     // ==== END ====
     println!("\n");
@@ -133,18 +137,21 @@ fn generate_wire(filename: &str) -> Vec<WirePiece> {
     let mut currY = 0;
 
     let mut pieces: Vec<WirePiece> = Vec::new();
+    let mut prev_len = 0; //Previous combined length of all wires
 
     for c in commands {
         let direction = c.as_bytes()[0];
         let num: i32 = c[1..].parse().expect("Failed to parse string to number");
         //println!("{}", direction == 85 || direction == 76 || direction == 82 || direction == 68);
         match direction { 
-            82 => {pieces.push(construct_wire_piece(true, currY, currX, currX + num)); currX += num}, //right
-            76 => {pieces.push(construct_wire_piece(true, currY, currX - num, currX)); currX -= num}, //left
-            85 => {pieces.push(construct_wire_piece(false, currX, currY, currY + num)); currY += num}, //up
-            68 => {pieces.push(construct_wire_piece(false, currX, currY - num, currY)); currY -= num}, //down
+            82 => {pieces.push(construct_wire_piece(true, false, currY, currX, currX + num, prev_len)); currX += num}, //right
+            76 => {pieces.push(construct_wire_piece(true, true, currY, currX - num, currX, prev_len)); currX -= num}, //left
+            85 => {pieces.push(construct_wire_piece(false, false, currX, currY, currY + num, prev_len)); currY += num}, //up
+            68 => {pieces.push(construct_wire_piece(false, true, currX, currY - num, currY, prev_len)); currY -= num}, //down
             _ => {}
         }
+        prev_len += num;
+        println!("{}", prev_len);
     }
     pieces
 }
@@ -155,28 +162,33 @@ fn generate_wire(filename: &str) -> Vec<WirePiece> {
  */
 struct WirePiece {
     horizontal: bool, //Whether or not the wire is horizontal
+    negative: bool, //If the wire points down or left it is considered to be pointing negative; used to determine the length along the wire when finding an intersection
     position: i32, //The static position along which the segment runs
     start: i32, //The starting position
-    finish: i32 //The finishing position
+    finish: i32, //The finishing position
+    total_len: i32 //The total length of all previous wires up until the start of this wire
 }
 
 /**
  * Constructor for the WirePiece struct
  */
-fn construct_wire_piece(horizontal: bool, position: i32, start: i32, finish: i32) -> WirePiece {
+fn construct_wire_piece(horizontal: bool, negative: bool, position: i32, start: i32, finish: i32, total_len: i32) -> WirePiece {
     WirePiece {
         horizontal,
+        negative,
         position,
         start,
-        finish
+        finish,
+        total_len
     }
 }
 
 /**
  * Determines an intersection between two wire segments
  * Returns an Option that contains a value if there is an intersection and the Manhattan distance of that intersection from the origin
+ * the second item in the tuple is then the minimum of the two distances along the wires
  */
-fn intersection(first: &WirePiece, second: &WirePiece) -> Option<i32> {
+fn intersection(first: &WirePiece, second: &WirePiece) -> Option<(i32, i32)> {
     let horizontal = first;
     let vertical = second;
     if first.horizontal && !second.horizontal {
@@ -192,12 +204,22 @@ fn intersection(first: &WirePiece, second: &WirePiece) -> Option<i32> {
     if horizontal.position > vertical.start && horizontal.position < vertical.finish 
             && vertical.position > horizontal.start && vertical.position < horizontal.finish {
         //println!("{}", abs(horizontal.position) + abs(vertical.position));
-        return Some(abs(horizontal.position) + abs(vertical.position));
+        //If the wire segment is negative we take the total previous plus the difference between the coordinate and the finish
+        //Else we use the start instead of the finish
+        let hor_distance = horizontal.total_len + match horizontal.negative {
+            true => abs(horizontal.finish - vertical.position),
+            false => abs(horizontal.start - vertical.position)
+        };
+        let ver_distance = vertical.total_len + match vertical.negative {
+            true => abs(vertical.finish - horizontal.position),
+            false => abs(vertical.start - horizontal.position)
+        };
+        return Some((abs(horizontal.position) + abs(vertical.position), hor_distance + ver_distance));
     }
     None
 }
 
-fn abs(x: i32) -> i32{
+fn abs(x: i32) -> i32 {
     //println!("{}", x);
     if x < 0 {
         return -x;
