@@ -59,6 +59,10 @@ fn main() {
     println!("\tMinimum wire crossing distance: {}", min_distance);
     println!("\tMinimum length along wire crossing: {}", min_length);
 
+    // ==== DAY 4 ====
+
+    println!("Number of possible passwords btwn 172930-683082: {}", count_passwords(172930, 683082));
+
     // ==== END ====
     println!("\n");
 }
@@ -151,7 +155,7 @@ fn generate_wire(filename: &str) -> Vec<WirePiece> {
             _ => {}
         }
         prev_len += num;
-        println!("{}", prev_len);
+        //println!("{}", prev_len);
     }
     pieces
 }
@@ -225,4 +229,54 @@ fn abs(x: i32) -> i32 {
         return -x;
     }
     x
+}
+
+/**
+ * Counts the number of valid passwords according to the specifications of the elves' memories
+ */
+fn count_passwords(left: i32, right: i32) -> i32 {
+    let mut counter = left;
+    if counter < 100000 {
+        counter = 100000;
+    }
+    let mut numValid = 0;
+    while counter <= right && counter <= 999999 {
+        let mut valid = false;
+        for i in 1..6 { //any valid password will be six digits long
+            if !valid && get_digit_at(counter, i) == get_digit_at(counter, i + 1) {
+                valid = true; //Valid if there exist doubled digits
+            }
+            if get_digit_at(counter, i) > get_digit_at(counter, i + 1) { //If the next digit is lower
+                valid = false; //the password decreases and is therefore invalid; we will remove any validity that we may have gotten
+                //println!("decreased");
+                //counter += i32::pow(10, (5 - i) as u32);
+                //println!("new num: {}", counter);
+                break; 
+            }
+        }
+        if valid { //Assuming everything else has gone well up to this point, the password is valid if there exist adjacents
+            numValid += 1;
+        } 
+        counter += 1;
+    }
+    numValid
+}
+
+/**
+ * Gets the digit at the given index of a number
+ * Indexes start at 1, because that's the way the algorithm works
+ */
+fn get_digit_at(x: i32, index: i32) -> i32 {
+    let mut length = 0;
+    let mut num = x;
+    while num > 0 {
+        num /= 10;
+        length += 1;
+    }
+    let mut digit = x;
+    for i in 0..length - index {
+        digit /= 10;
+    }
+    //println!("{}th digit of {}: {}", index, x, digit % 10);
+    digit % 10
 }
