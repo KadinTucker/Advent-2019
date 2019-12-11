@@ -61,7 +61,9 @@ fn main() {
 
     // ==== DAY 4 ====
 
-    println!("Number of possible passwords btwn 172930-683082: {}", count_passwords(172930, 683082));
+    println!("\tNumber of possible passwords btwn 172930-683082: {}", count_passwords(172930, 683082));
+    //let pass = 133444;
+    //println!("{}: {}", pass, check_password(pass));
 
     // ==== END ====
     println!("\n");
@@ -241,20 +243,8 @@ fn count_passwords(left: i32, right: i32) -> i32 {
     }
     let mut numValid = 0;
     while counter <= right && counter <= 999999 {
-        let mut valid = false;
-        for i in 1..6 { //any valid password will be six digits long
-            if !valid && get_digit_at(counter, i) == get_digit_at(counter, i + 1) {
-                valid = true; //Valid if there exist doubled digits
-            }
-            if get_digit_at(counter, i) > get_digit_at(counter, i + 1) { //If the next digit is lower
-                valid = false; //the password decreases and is therefore invalid; we will remove any validity that we may have gotten
-                //println!("decreased");
-                //counter += i32::pow(10, (5 - i) as u32);
-                //println!("new num: {}", counter);
-                break; 
-            }
-        }
-        if valid { //Assuming everything else has gone well up to this point, the password is valid if there exist adjacents
+        if check_password(counter) {
+            //println!("{}", counter);
             numValid += 1;
         } 
         counter += 1;
@@ -263,8 +253,32 @@ fn count_passwords(left: i32, right: i32) -> i32 {
 }
 
 /**
+ * Checks whether the given password is in accord with the elves' memory
+ */
+fn check_password(password: i32) -> bool {
+    let mut valid = false;
+    let mut i = 1; //i is an index storing variable
+    while i < 6 { //any valid password will be six digits long
+        if !valid && get_digit_at(password, i) == get_digit_at(password, i + 1) 
+                && get_digit_at(password, i) != get_digit_at(password, i - 1) 
+                && get_digit_at(password, i + 1) != get_digit_at(password, i + 2) { //If the next digit matches and is in a neighborhood of inequality
+            //println!("digits {}, {} of {}", i, i + 1, password);
+            valid = true;
+        }
+        if get_digit_at(password, i) > get_digit_at(password, i + 1) { //If the next digit is lower
+            valid = false; //the password decreases and is therefore invalid; we will remove any validity that we may have gotten
+            //println!("decreased");
+            break; 
+        }
+        i += 1;
+    }
+    valid
+}
+
+/**
  * Gets the digit at the given index of a number
  * Indexes start at 1, because that's the way the algorithm works
+ * Returns -1 if the index is not possible for the number
  */
 fn get_digit_at(x: i32, index: i32) -> i32 {
     let mut length = 0;
@@ -272,6 +286,9 @@ fn get_digit_at(x: i32, index: i32) -> i32 {
     while num > 0 {
         num /= 10;
         length += 1;
+    }
+    if index < 1 || index > length {
+        return -1;
     }
     let mut digit = x;
     for i in 0..length - index {
